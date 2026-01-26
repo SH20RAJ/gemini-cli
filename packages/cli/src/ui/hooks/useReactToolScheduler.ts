@@ -18,6 +18,7 @@ import type {
   ValidatingToolCall,
   WaitingToolCall,
   CancelledToolCall,
+  AnsiOutput,
 } from '@google/gemini-cli-core';
 import { CoreToolScheduler } from '@google/gemini-cli-core';
 import { useCallback, useState, useMemo, useEffect, useRef } from 'react';
@@ -137,6 +138,41 @@ export function useReactToolScheduler(
               pid: coreTc.pid,
             };
           } else {
+            // If the tool was cancelled and has no resultDisplay (generic cancellation),
+            // try to preserve the liveOutput from the executing state.
+            // This allows rich displays (like subagent progress) to show their cancelled state.
+            if (
+              coreTc.status === 'cancelled' &&
+              !coreTc.response.resultDisplay &&
+              existingTrackedCall &&
+              'liveOutput' in existingTrackedCall &&
+              existingTrackedCall.liveOutput
+            ) {
+              let resultDisplay = existingTrackedCall.liveOutput;
+              // If it's a subagent progress, ensure the state reflects cancellation
+              if (
+                typeof resultDisplay === 'object' &&
+                resultDisplay !== null &&
+                'isSubagentProgress' in resultDisplay &&
+                (resultDisplay as { isSubagentProgress: boolean })
+                  .isSubagentProgress
+              ) {
+                resultDisplay = {
+                  ...resultDisplay,
+                  state: 'cancelled',
+                } as unknown as AnsiOutput; // Cast to satisfy type system
+              }
+
+              return {
+                ...coreTc,
+                responseSubmittedToGemini,
+                response: {
+                  ...coreTc.response,
+                  resultDisplay,
+                },
+              };
+            }
+
             return {
               ...coreTc,
               responseSubmittedToGemini,

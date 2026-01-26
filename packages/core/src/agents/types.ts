@@ -71,6 +71,7 @@ export interface SubagentProgress {
   isSubagentProgress: true;
   agentName: string;
   recentActivity: SubagentActivityItem[];
+  state?: 'running' | 'completed' | 'error' | 'cancelled';
 }
 
 /**

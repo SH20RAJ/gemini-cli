@@ -10,6 +10,7 @@ import type {
   ToolResult,
   Config,
   AnsiOutput,
+  ToolResultDisplay,
 } from '../index.js';
 import {
   ToolErrorType,
@@ -119,6 +120,7 @@ export class ToolExecutor {
             return this.createCancelledResult(
               call,
               'User cancelled tool execution.',
+              toolResult.returnDisplay,
             );
           } else if (toolResult.error === undefined) {
             return await this.createSuccessResult(call, toolResult);
@@ -154,6 +156,7 @@ export class ToolExecutor {
   private createCancelledResult(
     call: ToolCall,
     reason: string,
+    resultDisplay?: ToolResultDisplay,
   ): CancelledToolCall {
     const errorMessage = `[Operation Cancelled] ${reason}`;
     const startTime = 'startTime' in call ? call.startTime : undefined;
@@ -178,7 +181,7 @@ export class ToolExecutor {
             },
           },
         ],
-        resultDisplay: undefined,
+        resultDisplay,
         error: undefined,
         errorType: undefined,
         contentLength: errorMessage.length,
