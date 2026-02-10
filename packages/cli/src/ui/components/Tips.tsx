@@ -14,16 +14,14 @@ interface TipsProps {
 }
 
 export const Tips: React.FC<TipsProps> = () => (
-    <Box flexDirection="column" marginTop={1}>
-      <Text color={theme.text.primary}>Tips for getting started:</Text>
-      <Text color={theme.text.primary}>
-        1. <Text color={theme.text.secondary}>/help</Text> for more information
-      </Text>
-      <Text color={theme.text.primary}>
-        2. Ask coding questions, edit code or run commands
-      </Text>
-      <Text color={theme.text.primary}>
-        3. Be specific for the best results
-      </Text>
-    </Box>
-  );
+  <Box flexDirection="column" marginTop={1}>
+    <Text color={theme.text.primary}>Tips for getting started:</Text>
+    <Text color={theme.text.primary}>
+      1. <Text color={theme.text.secondary}>/help</Text> for more information
+    </Text>
+    <Text color={theme.text.primary}>
+      2. Ask coding questions, edit code or run commands
+    </Text>
+    <Text color={theme.text.primary}>3. Be specific for the best results</Text>
+  </Box>
+);
