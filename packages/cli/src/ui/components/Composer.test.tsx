@@ -34,6 +34,7 @@ import { StreamingState } from '../types.js';
 import { TransientMessageType } from '../../utils/events.js';
 import type { LoadedSettings } from '../../config/settings.js';
 import type { SessionMetrics } from '../contexts/SessionContext.js';
+import type { TextBuffer } from './shared/text-buffer.js';
 
 const composerTestControls = vi.hoisted(() => ({
   suggestionsVisible: false,
