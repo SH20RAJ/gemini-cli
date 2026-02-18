@@ -65,6 +65,10 @@ export interface FeatureSpec {
    * Description of the feature.
    */
   description?: string;
+  /**
+   * Link to the Lifecycle Tracking Issue on GitHub.
+   */
+  issueUrl?: string;
 }
 
 /**
