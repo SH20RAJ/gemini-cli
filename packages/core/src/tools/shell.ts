@@ -12,17 +12,15 @@ import crypto from 'node:crypto';
 import type { Config } from '../config/config.js';
 import { debugLogger } from '../index.js';
 import { ToolErrorType } from './tool-error.js';
-import type {
-  ToolInvocation,
-  ToolResult,
-  ToolCallConfirmationDetails,
-  ToolExecuteConfirmationDetails,
-} from './tools.js';
 import {
   BaseDeclarativeTool,
   BaseToolInvocation,
   ToolConfirmationOutcome,
   Kind,
+  type ToolInvocation,
+  type ToolResult,
+  type ToolCallConfirmationDetails,
+  type ToolExecuteConfirmationDetails,
   type PolicyUpdateOptions,
 } from './tools.js';
 
@@ -181,6 +179,8 @@ export class ShellToolInvocation extends BaseToolInvocation<
     const outputFileName = `gemini_shell_output_${crypto.randomBytes(6).toString('hex')}.log`;
     const outputFilePath = path.join(os.tmpdir(), outputFileName);
     const outputStream = fs.createWriteStream(outputFilePath);
+
+    let fullOutputReturned = false;
 
     try {
       // pgrep is not available on Windows, so we can't get background PIDs
@@ -392,18 +392,6 @@ export class ShellToolInvocation extends BaseToolInvocation<
         llmContent = llmContentParts.join('\n');
       }
 
-      if (outputStream.bytesWritten > 0) {
-        const fileMsg = `[Full command output saved to: ${outputFilePath}]`;
-        if (llmContent.includes('[GEMINI_CLI_WARNING: Output truncated.')) {
-          llmContent = llmContent.replace(
-            /\[GEMINI_CLI_WARNING: Output truncated\..*?\]/,
-            fileMsg,
-          );
-        } else {
-          llmContent = `${llmContent}${EOL}${EOL}${fileMsg}`;
-        }
-      }
-
       let returnDisplayMessage = '';
       if (this.config.getDebugMode()) {
         returnDisplayMessage = llmContent;
@@ -433,24 +421,6 @@ export class ShellToolInvocation extends BaseToolInvocation<
         }
       }
 
-      if (outputStream.bytesWritten > 0) {
-        const fileMsg = `[Full command output saved to: ${outputFilePath}]`;
-        if (
-          returnDisplayMessage.includes(
-            '[GEMINI_CLI_WARNING: Output truncated.',
-          )
-        ) {
-          returnDisplayMessage = returnDisplayMessage.replace(
-            /\[GEMINI_CLI_WARNING: Output truncated\..*?\]/,
-            fileMsg,
-          );
-        } else if (returnDisplayMessage) {
-          returnDisplayMessage = `${returnDisplayMessage}${EOL}${EOL}${fileMsg}`;
-        } else {
-          returnDisplayMessage = fileMsg;
-        }
-      }
-
       const summarizeConfig = this.config.getSummarizeToolOutputConfig();
       const executionError = result.error
         ? {
@@ -468,19 +438,31 @@ export class ShellToolInvocation extends BaseToolInvocation<
           this.config.getGeminiClient(),
           signal,
         );
-        return {
+        const toolResult: ToolResult = {
           llmContent: summary,
           returnDisplay: returnDisplayMessage,
+          fullOutputFilePath:
+            outputStream.bytesWritten > 0 ? outputFilePath : undefined,
           ...executionError,
         };
+        if (toolResult.fullOutputFilePath) {
+          fullOutputReturned = true;
+        }
+        return toolResult;
       }
 
-      return {
+      const toolResult: ToolResult = {
         llmContent,
         returnDisplay: returnDisplayMessage,
         data,
+        fullOutputFilePath:
+          outputStream.bytesWritten > 0 ? outputFilePath : undefined,
         ...executionError,
       };
+      if (toolResult.fullOutputFilePath) {
+        fullOutputReturned = true;
+      }
+      return toolResult;
     } finally {
       if (timeoutTimer) clearTimeout(timeoutTimer);
       if (!outputStream.closed) {
@@ -492,6 +474,13 @@ export class ShellToolInvocation extends BaseToolInvocation<
         await fsPromises.unlink(tempFilePath);
       } catch {
         // Ignore errors during unlink
+      }
+      if (!fullOutputReturned) {
+        try {
+          await fsPromises.unlink(outputFilePath);
+        } catch {
+          // Ignore errors during unlink
+        }
       }
     }
   }
