@@ -6,7 +6,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PromptProvider } from './promptProvider.js';
-import type { Config } from '../config/config.js';
+import type { Config, AnyDeclarativeTool } from '../config/config.js';
+import { ApprovalMode } from '../policy/types.js';
+import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
+import type { CallableTool } from '@google/genai';
+import { createMockMessageBus } from '../test-utils/mock-message-bus.js';
 import {
   getAllGeminiMdFilenames,
   DEFAULT_CONTEXT_FILENAME,
@@ -86,5 +90,41 @@ describe('PromptProvider', () => {
     expect(prompt).toContain(
       `# Contextual Instructions (${DEFAULT_CONTEXT_FILENAME}, CUSTOM.md)`,
     );
+  });
+
+  it('should include allowed tools in Plan Mode system prompt', () => {
+    vi.mocked(getAllGeminiMdFilenames).mockReturnValue([
+      DEFAULT_CONTEXT_FILENAME,
+    ]);
+    vi.mocked(mockConfig.getApprovalMode).mockReturnValue(ApprovalMode.PLAN);
+
+    const mcpTool = new DiscoveredMCPTool(
+      {} as unknown as CallableTool,
+      'mcp',
+      'list',
+      'desc',
+      {},
+      createMockMessageBus(),
+      false,
+      true,
+    );
+
+    const mockTools = [
+      { name: 'read_file', serverName: undefined },
+      mcpTool,
+      { name: 'write_file', serverName: undefined }, // should be excluded from tools list as it is explicitly handled
+    ];
+
+    vi.mocked(mockConfig.getToolRegistry().getAllTools).mockReturnValue(
+      mockTools as unknown as AnyDeclarativeTool[],
+    );
+
+    const provider = new PromptProvider();
+    const prompt = provider.getCoreSystemPrompt(mockConfig);
+
+    expect(prompt).toContain('# Active Approval Mode: Plan');
+    expect(prompt).toContain('<tool>`read_file`</tool>');
+    expect(prompt).toContain('<tool>`list` (mcp)</tool>');
+    expect(prompt).not.toContain('<tool>`write_file`</tool>');
   });
 });

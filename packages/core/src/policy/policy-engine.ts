@@ -27,19 +27,55 @@ import {
 import { getToolAliases } from '../tools/tool-names.js';
 
 function isWildcardPattern(name: string): boolean {
-  return name.endsWith('__*');
+  return name === '*' || name.includes('*');
 }
 
-function getWildcardPrefix(pattern: string): string {
-  return pattern.slice(0, -3);
-}
-
-function matchesWildcard(pattern: string, toolName: string): boolean {
-  if (!isWildcardPattern(pattern)) {
-    return false;
+function matchesWildcard(
+  pattern: string,
+  toolName: string,
+  serverName: string | undefined,
+): boolean {
+  if (pattern === '*') {
+    return true;
   }
-  const prefix = getWildcardPrefix(pattern);
-  return toolName.startsWith(prefix + '__');
+
+  if (pattern.includes('__')) {
+    const parts = pattern.split('__');
+    if (parts.length !== 2) return false;
+    const [patternServer, patternTool] = parts;
+
+    // Only match __ patterns against tools that are qualified (have __)
+    // or if an explicit serverName was provided.
+    const isQualified = toolName.includes('__');
+    if (serverName === undefined && !isQualified) {
+      return false;
+    }
+
+    // Check server match
+    if (patternServer !== '*') {
+      const actualServer = serverName ?? toolName.split('__')[0];
+      if (actualServer !== patternServer) {
+        return false;
+      }
+    }
+
+    // Robust check: if serverName is provided, the tool name MUST be qualified by it.
+    if (serverName !== undefined && !toolName.startsWith(serverName + '__')) {
+      return false;
+    }
+
+    // Check tool match
+    if (patternTool !== '*') {
+      const actualTool = isQualified ? toolName.split('__')[1] : toolName;
+      if (actualTool !== patternTool) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  return toolName === pattern;
 }
 
 function ruleMatches(
@@ -48,6 +84,7 @@ function ruleMatches(
   stringifiedArgs: string | undefined,
   serverName: string | undefined,
   currentApprovalMode: ApprovalMode,
+  toolAnnotations?: Record<string, unknown>,
 ): boolean {
   // Check if rule applies to current approval mode
   if (rule.modes && rule.modes.length > 0) {
@@ -58,22 +95,27 @@ function ruleMatches(
 
   // Check tool name if specified
   if (rule.toolName) {
-    // Support wildcard patterns: "serverName__*" matches "serverName__anyTool"
     if (isWildcardPattern(rule.toolName)) {
-      const prefix = getWildcardPrefix(rule.toolName);
-      if (serverName !== undefined) {
-        // Robust check: if serverName is provided, it MUST match the prefix exactly.
-        // This prevents "malicious-server" from spoofing "trusted-server" by naming itself "trusted-server__malicious".
-        if (serverName !== prefix) {
-          return false;
-        }
-      }
-      // Always verify the prefix, even if serverName matched
-      if (!toolCall.name || !matchesWildcard(rule.toolName, toolCall.name)) {
+      if (
+        !toolCall.name ||
+        !matchesWildcard(rule.toolName, toolCall.name, serverName)
+      ) {
         return false;
       }
     } else if (toolCall.name !== rule.toolName) {
       return false;
+    }
+  }
+
+  // Check annotations if specified
+  if (rule.toolAnnotations) {
+    if (!toolAnnotations) {
+      return false;
+    }
+    for (const [key, value] of Object.entries(rule.toolAnnotations)) {
+      if (toolAnnotations[key] !== value) {
+        return false;
+      }
     }
   }
 
@@ -157,6 +199,7 @@ export class PolicyEngine {
     dir_path: string | undefined,
     allowRedirection?: boolean,
     rule?: PolicyRule,
+    toolAnnotations?: Record<string, unknown>,
   ): Promise<CheckResult> {
     if (!command) {
       return {
@@ -247,6 +290,7 @@ export class PolicyEngine {
         const subResult = await this.check(
           { name: toolName, args: { command: subCmd, dir_path } },
           serverName,
+          toolAnnotations,
         );
 
         // subResult.decision is already filtered through applyNonInteractiveMode by this.check()
@@ -304,6 +348,7 @@ export class PolicyEngine {
   async check(
     toolCall: FunctionCall,
     serverName: string | undefined,
+    toolAnnotations?: Record<string, unknown>,
   ): Promise<CheckResult> {
     let stringifiedArgs: string | undefined;
     // Compute stringified args once before the loop
@@ -356,7 +401,14 @@ export class PolicyEngine {
 
     for (const rule of this.rules) {
       const match = toolCallsToTry.some((tc) =>
-        ruleMatches(rule, tc, stringifiedArgs, serverName, this.approvalMode),
+        ruleMatches(
+          rule,
+          tc,
+          stringifiedArgs,
+          serverName,
+          this.approvalMode,
+          toolAnnotations,
+        ),
       );
 
       if (match) {
@@ -373,6 +425,7 @@ export class PolicyEngine {
             shellDirPath,
             rule.allowRedirection,
             rule,
+            toolAnnotations,
           );
           decision = shellResult.decision;
           if (shellResult.rule) {
@@ -399,6 +452,9 @@ export class PolicyEngine {
           this.defaultDecision,
           serverName,
           shellDirPath,
+          undefined,
+          undefined,
+          toolAnnotations,
         );
         decision = shellResult.decision;
         matchedRule = shellResult.rule;
@@ -417,6 +473,7 @@ export class PolicyEngine {
             stringifiedArgs,
             serverName,
             this.approvalMode,
+            toolAnnotations,
           )
         ) {
           debugLogger.debug(
@@ -597,7 +654,7 @@ export class PolicyEngine {
       for (const processed of processedTools) {
         if (
           isWildcardPattern(processed) &&
-          matchesWildcard(processed, toolName)
+          matchesWildcard(processed, toolName, undefined)
         ) {
           // It's covered by a higher-priority wildcard rule.
           // If that wildcard rule resulted in exclusion, this tool should also be excluded.

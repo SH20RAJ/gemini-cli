@@ -8,10 +8,14 @@ import { expect, describe, it } from 'vitest';
 import {
   doesToolInvocationMatch,
   getToolSuggestion,
+  isAllowedInPlanMode,
   shouldHideToolCall,
 } from './tool-utils.js';
-import type { AnyToolInvocation, Config } from '../index.js';
-import {
+import type {
+  AnyDeclarativeTool,
+  AnyToolInvocation,
+  Config,
+
   ReadFileTool,
   ApprovalMode,
   CoreToolCallStatus,
@@ -19,8 +23,62 @@ import {
   WRITE_FILE_DISPLAY_NAME,
   EDIT_DISPLAY_NAME,
   READ_FILE_DISPLAY_NAME,
-} from '../index.js';
+  GLOB_TOOL_NAME,
+  WRITE_FILE_TOOL_NAME,
+  DiscoveredMCPTool,
+  type CallableTool} from '../index.js';
 import { createMockMessageBus } from '../test-utils/mock-message-bus.js';
+
+describe('isAllowedInPlanMode', () => {
+  it('should allow tools in PLAN_MODE_TOOLS', () => {
+    const mockTool = { name: GLOB_TOOL_NAME } as unknown as AnyDeclarativeTool;
+    expect(isAllowedInPlanMode(mockTool)).toBe(true);
+  });
+
+  it('should allow write_file and replace for plan writing', () => {
+    const writeFile = {
+      name: WRITE_FILE_TOOL_NAME,
+    } as unknown as AnyDeclarativeTool;
+    const replace = { name: 'replace' } as unknown as AnyDeclarativeTool;
+    expect(isAllowedInPlanMode(writeFile)).toBe(true);
+    expect(isAllowedInPlanMode(replace)).toBe(true);
+  });
+
+  it('should allow read-only MCP tools', () => {
+    const mcpTool = new DiscoveredMCPTool(
+      {} as unknown as CallableTool,
+      'mcp',
+      'tool',
+      'desc',
+      {},
+      createMockMessageBus(),
+      false,
+      true,
+    );
+    expect(isAllowedInPlanMode(mcpTool)).toBe(true);
+  });
+
+  it('should deny non-read-only MCP tools', () => {
+    const mcpTool = new DiscoveredMCPTool(
+      {} as unknown as CallableTool,
+      'mcp',
+      'tool',
+      'desc',
+      {},
+      createMockMessageBus(),
+      false,
+      false,
+    );
+    expect(isAllowedInPlanMode(mcpTool)).toBe(false);
+  });
+
+  it('should deny non-approved built-in tools', () => {
+    const shellTool = {
+      name: 'run_shell_command',
+    } as unknown as AnyDeclarativeTool;
+    expect(isAllowedInPlanMode(shellTool)).toBe(false);
+  });
+});
 
 describe('shouldHideToolCall', () => {
   it.each([

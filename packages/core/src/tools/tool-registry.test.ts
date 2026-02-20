@@ -14,6 +14,7 @@ import { ApprovalMode } from '../policy/types.js';
 import { ToolRegistry, DiscoveredTool } from './tool-registry.js';
 import { DISCOVERED_TOOL_PREFIX } from './tool-names.js';
 import { DiscoveredMCPTool, MCP_QUALIFIED_NAME_SEPARATOR } from './mcp-tool.js';
+import { Kind } from './tools.js';
 import type { FunctionDeclaration, CallableTool } from '@google/genai';
 import { mcpToTool } from '@google/genai';
 import { spawn } from 'node:child_process';
@@ -125,6 +126,7 @@ const createMCPTool = (
   serverName: string,
   toolName: string,
   description: string,
+  isReadOnly = false,
   mockCallable: CallableTool = {} as CallableTool,
 ) =>
   new DiscoveredMCPTool(
@@ -134,6 +136,8 @@ const createMCPTool = (
     description,
     {},
     mockMessageBusForHelper,
+    false, // trust
+    isReadOnly,
   );
 
 // Helper to create a mock spawn process for tool discovery
@@ -673,6 +677,59 @@ describe('ToolRegistry', () => {
       const invocation = tool.build(params);
       const description = invocation.getDescription();
       expect(description).toBe(JSON.stringify(params));
+    });
+  });
+
+  describe('Plan Mode Filtering', () => {
+    it('should only return allowed tools in Plan Mode', async () => {
+      vi.spyOn(config, 'getApprovalMode').mockReturnValue(ApprovalMode.PLAN);
+
+      const readOnlyBuiltin = new MockTool({
+        name: 'read_file',
+        kind: Kind.Read,
+        messageBus: mockMessageBus,
+      } as any);
+      const writeBuiltin = new MockTool({
+        name: 'run_shell_command',
+        kind: Kind.Other,
+        messageBus: mockMessageBus,
+      } as any);
+      const readOnlyMcp = createMCPTool('mcp', 'read', 'desc', true);
+      const writeMcp = createMCPTool('mcp', 'write', 'desc', false);
+
+      toolRegistry.registerTool(readOnlyBuiltin);
+      toolRegistry.registerTool(writeBuiltin);
+      toolRegistry.registerTool(readOnlyMcp);
+      toolRegistry.registerTool(writeMcp);
+
+      const activeToolNames = toolRegistry.getAllToolNames();
+
+      expect(activeToolNames).toContain('read_file');
+      expect(activeToolNames).toContain('read'); // readOnlyMcp
+      expect(activeToolNames).not.toContain('run_shell_command');
+      expect(activeToolNames).not.toContain('write');
+    });
+
+    it('should explicitly allow write_file and replace for plan writing', () => {
+      vi.spyOn(config, 'getApprovalMode').mockReturnValue(ApprovalMode.PLAN);
+
+      const writeFile = new MockTool({
+        name: 'write_file',
+        kind: Kind.Other,
+        messageBus: mockMessageBus,
+      } as any);
+      const replace = new MockTool({
+        name: 'replace',
+        kind: Kind.Other,
+        messageBus: mockMessageBus,
+      } as any);
+
+      toolRegistry.registerTool(writeFile);
+      toolRegistry.registerTool(replace);
+
+      const activeToolNames = toolRegistry.getAllToolNames();
+      expect(activeToolNames).toContain('write_file');
+      expect(activeToolNames).toContain('replace');
     });
   });
 });

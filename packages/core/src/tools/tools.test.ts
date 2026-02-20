@@ -266,4 +266,27 @@ describe('Tools Read-Only property', () => {
     const searcher = new MyTool('s', 'S', 'd', Kind.Search, {}, bus);
     expect(searcher.isReadOnly).toBe(true);
   });
+
+  it('should store and retrieve tool annotations in DeclarativeTool', () => {
+    const bus = createMockMessageBus();
+    const annotations = { test: 'value' };
+    class MyTool extends DeclarativeTool<object, ToolResult> {
+      build(_params: object): ToolInvocation<object, ToolResult> {
+        throw new Error('Not implemented');
+      }
+    }
+
+    const tool = new MyTool(
+      'name',
+      'title',
+      'description',
+      Kind.Other,
+      {},
+      bus,
+      true,
+      false,
+      annotations,
+    );
+    expect(tool.annotations).toEqual(annotations);
+  });
 });

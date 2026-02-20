@@ -17,12 +17,6 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { StreamableHTTPClientTransportOptions } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import type {
-  GetPromptResult,
-  Prompt,
-  ReadResourceResult,
-  Resource,
-} from '@modelcontextprotocol/sdk/types.js';
 import {
   ListResourcesResultSchema,
   ListRootsRequestSchema,
@@ -31,9 +25,12 @@ import {
   ToolListChangedNotificationSchema,
   PromptListChangedNotificationSchema,
   ProgressNotificationSchema,
+  type GetPromptResult,
+  type Prompt,
+  type ReadResourceResult,
+  type Resource,
   type Tool as McpTool,
 } from '@modelcontextprotocol/sdk/types.js';
-import { ApprovalMode, PolicyDecision } from '../policy/types.js';
 import { parse } from 'shell-quote';
 import type { Config, MCPServerConfig } from '../config/config.js';
 import { AuthProviderType } from '../config/config.js';
@@ -1082,22 +1079,12 @@ export async function discoverTools(
           messageBus,
           mcpServerConfig.trust,
           isReadOnly,
+          toolDef.annotations,
           undefined,
           cliConfig,
           mcpServerConfig.extension?.name,
           mcpServerConfig.extension?.id,
         );
-
-        // If the tool is read-only, allow it in Plan mode
-        if (isReadOnly) {
-          cliConfig.getPolicyEngine().addRule({
-            toolName: tool.getFullyQualifiedName(),
-            decision: PolicyDecision.ASK_USER,
-            priority: 50, // Match priority of built-in plan tools
-            modes: [ApprovalMode.PLAN],
-            source: `MCP Annotation (readOnlyHint) - ${mcpServerName}`,
-          });
-        }
 
         discoveredTools.push(tool);
       } catch (error) {

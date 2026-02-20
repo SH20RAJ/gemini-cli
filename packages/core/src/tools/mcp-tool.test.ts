@@ -117,6 +117,23 @@ describe('DiscoveredMCPTool', () => {
       expect(tool.schema.parametersJsonSchema).toEqual(inputSchema);
       expect(tool.serverToolName).toBe(serverToolName);
     });
+
+    it('should store and retrieve tool annotations', () => {
+      const annotations = { readOnlyHint: true, custom: 'data' };
+      const annotatedTool = new DiscoveredMCPTool(
+        mockCallableToolInstance,
+        serverName,
+        serverToolName,
+        baseDescription,
+        inputSchema,
+        createMockMessageBus(),
+        false,
+        true,
+        annotations,
+      );
+
+      expect(annotatedTool.annotations).toEqual(annotations);
+    });
   });
 
   describe('execute', () => {
@@ -904,6 +921,7 @@ describe('DiscoveredMCPTool', () => {
         inputSchema,
         bus,
         trust,
+        undefined,
         undefined,
         undefined,
         mockConfig(isTrusted) as any,

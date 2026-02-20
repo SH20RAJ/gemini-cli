@@ -14,7 +14,30 @@ import {
   ASK_USER_DISPLAY_NAME,
   WRITE_FILE_DISPLAY_NAME,
   EDIT_DISPLAY_NAME,
+  PLAN_MODE_TOOLS,
+  WRITE_FILE_TOOL_NAME,
+  EDIT_TOOL_NAME,
 } from '../tools/tool-names.js';
+import { DiscoveredMCPTool } from '../tools/mcp-tool.js';
+
+/**
+ * Checks if a tool is allowed to be used in Plan Mode.
+ */
+export function isAllowedInPlanMode(tool: AnyDeclarativeTool): boolean {
+  if ((PLAN_MODE_TOOLS as readonly string[]).includes(tool.name)) {
+    return true;
+  }
+  if (tool.name === WRITE_FILE_TOOL_NAME || tool.name === EDIT_TOOL_NAME) {
+    return true;
+  }
+  // For other tools (primarily MCP tools), we allow them if they are read-only.
+  // Standard built-in tools are already covered by PLAN_MODE_TOOLS.
+  // This ensure that read-only MCP tools are visible to the model.
+  if (tool instanceof DiscoveredMCPTool && tool.isReadOnly) {
+    return true;
+  }
+  return false;
+}
 
 /**
  * Options for determining if a tool call should be hidden in the CLI history.

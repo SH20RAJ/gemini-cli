@@ -5,17 +5,15 @@
  */
 
 import { safeJsonStringify } from '../utils/safeJsonStringify.js';
-import type {
-  ToolCallConfirmationDetails,
-  ToolInvocation,
-  ToolMcpConfirmationDetails,
-  ToolResult,
-} from './tools.js';
 import {
   BaseDeclarativeTool,
   BaseToolInvocation,
   Kind,
   ToolConfirmationOutcome,
+  type ToolCallConfirmationDetails,
+  type ToolInvocation,
+  type ToolMcpConfirmationDetails,
+  type ToolResult,
   type PolicyUpdateOptions,
 } from './tools.js';
 import type { CallableTool, FunctionCall, Part } from '@google/genai';
@@ -248,6 +246,7 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
     messageBus: MessageBus,
     readonly trust?: boolean,
     isReadOnly?: boolean,
+    override readonly annotations?: Record<string, unknown>,
     nameOverride?: string,
     private readonly cliConfig?: Config,
     override readonly extensionName?: string,
@@ -262,6 +261,7 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
       messageBus,
       true, // isOutputMarkdown
       false, // canUpdateOutput,
+      annotations,
       extensionName,
       extensionId,
     );
@@ -295,6 +295,7 @@ export class DiscoveredMCPTool extends BaseDeclarativeTool<
       this.messageBus,
       this.trust,
       this.isReadOnly,
+      this.annotations,
       this.getFullyQualifiedName(),
       this.cliConfig,
       this.extensionName,

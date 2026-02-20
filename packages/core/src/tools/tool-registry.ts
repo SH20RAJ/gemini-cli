@@ -22,11 +22,11 @@ import { safeJsonStringify } from '../utils/safeJsonStringify.js';
 import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { debugLogger } from '../utils/debugLogger.js';
 import { coreEvents } from '../utils/events.js';
+import { isAllowedInPlanMode } from '../utils/tool-utils.js';
 import {
   DISCOVERED_TOOL_PREFIX,
   TOOL_LEGACY_ALIASES,
   getToolAliases,
-  PLAN_MODE_TOOLS,
   WRITE_FILE_TOOL_NAME,
   EDIT_TOOL_NAME,
 } from './tool-names.js';
@@ -345,7 +345,7 @@ export class ToolRegistry {
           proc.kill();
           return;
         }
-        stdoutByteLength += data.length;
+        stdoutByteLength = stdoutByteLength + data.length;
         stdout += stdoutDecoder.write(data);
       });
 
@@ -356,7 +356,7 @@ export class ToolRegistry {
           proc.kill();
           return;
         }
-        stderrByteLength += data.length;
+        stderrByteLength = stderrByteLength + data.length;
         stderr += stderrDecoder.write(data);
       });
 
@@ -494,21 +494,7 @@ export class ToolRegistry {
       typeof this.config.getApprovalMode === 'function' &&
       this.config.getApprovalMode() === ApprovalMode.PLAN;
     if (isPlanMode) {
-      const allowedToolNames = new Set<string>(PLAN_MODE_TOOLS);
-      // We allow write_file and replace for writing plans specifically.
-      allowedToolNames.add(WRITE_FILE_TOOL_NAME);
-      allowedToolNames.add(EDIT_TOOL_NAME);
-
-      // Discovered MCP tools are allowed if they are read-only.
-      if (
-        tool instanceof DiscoveredMCPTool &&
-        tool.isReadOnly &&
-        !allowedToolNames.has(tool.name)
-      ) {
-        allowedToolNames.add(tool.name);
-      }
-
-      if (!allowedToolNames.has(tool.name)) {
+      if (!isAllowedInPlanMode(tool)) {
         return false;
       }
     }
@@ -577,7 +563,7 @@ export class ToolRegistry {
   }
 
   /**
-   * Returns an array of all registered and discovered tool names which are not
+   * Returns an array of all registered and discovered tool instances which are not
    * excluded via configuration.
    */
   getAllToolNames(): string[] {

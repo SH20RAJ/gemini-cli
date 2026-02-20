@@ -23,7 +23,6 @@ import {
   ResourceListChangedNotificationSchema,
   ToolListChangedNotificationSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { ApprovalMode, PolicyDecision } from '../policy/types.js';
 
 import { WorkspaceContext } from '../utils/workspaceContext.js';
 import {
@@ -392,7 +391,7 @@ describe('mcp-client', () => {
       expect(mockedToolRegistry.registerTool).toHaveBeenCalledOnce();
     });
 
-    it('should register tool with readOnlyHint and add policy rule', async () => {
+    it('should register tool with readOnlyHint and capture annotations', async () => {
       const mockedClient = {
         connect: vi.fn(),
         discover: vi.fn(),
@@ -459,20 +458,20 @@ describe('mcp-client', () => {
       await client.connect();
       await client.discover(mockConfig);
 
-      // Verify tool registration
-      expect(mockedToolRegistry.registerTool).toHaveBeenCalledOnce();
+      // Verify tool registration with isReadOnly: true
+      expect(mockedToolRegistry.registerTool).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'readOnlyTool',
+          _isReadOnly: true,
+          annotations: { readOnlyHint: true },
+        }),
+      );
 
-      // Verify policy rule addition
-      expect(mockPolicyEngine.addRule).toHaveBeenCalledWith({
-        toolName: 'test-server__readOnlyTool',
-        decision: PolicyDecision.ASK_USER,
-        priority: 50,
-        modes: [ApprovalMode.PLAN],
-        source: 'MCP Annotation (readOnlyHint) - test-server',
-      });
+      // Verify policy rule was NOT added (now handled by plan.toml)
+      expect(mockPolicyEngine.addRule).not.toHaveBeenCalled();
     });
 
-    it('should not add policy rule for tool without readOnlyHint', async () => {
+    it('should correctly capture tool annotations during discovery', async () => {
       const mockedClient = {
         connect: vi.fn(),
         discover: vi.fn(),

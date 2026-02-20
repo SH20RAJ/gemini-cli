@@ -323,6 +323,29 @@ describe('Policy Engine Integration Tests', () => {
       ).toBe(PolicyDecision.DENY);
     });
 
+    it('should allow read-only MCP tools in Plan Mode via plan.toml policy', async () => {
+      const settings: Settings = {};
+      const config = await createPolicyEngineConfig(
+        settings,
+        ApprovalMode.PLAN,
+      );
+      const engine = new PolicyEngine(config);
+
+      // A read-only MCP tool should be ALLOWED based on plan.toml
+      const roMcpCall = { name: 'mcp__list', args: {} };
+      const roMcpMeta = { readOnlyHint: true };
+      expect((await engine.check(roMcpCall, 'mcp', roMcpMeta)).decision).toBe(
+        PolicyDecision.ALLOW,
+      );
+
+      // A regular MCP tool (not read-only) should be DENIED by catch-all
+      const rwMcpCall = { name: 'mcp__delete', args: {} };
+      const rwMcpMeta = { readOnlyHint: false };
+      expect((await engine.check(rwMcpCall, 'mcp', rwMcpMeta)).decision).toBe(
+        PolicyDecision.DENY,
+      );
+    });
+
     describe.each(['write_file', 'replace'])(
       'Plan Mode policy for %s',
       (toolName) => {
