@@ -22,7 +22,7 @@ import {
 } from '../tools/memoryTool.js';
 import { flattenMemory } from '../config/memory.js';
 import { FileDiscoveryService } from '../services/fileDiscoveryService.js';
-import { GEMINI_DIR, normalizePath } from './paths.js';
+import { GEMINI_DIR, normalizePath , homedir as pathsHomedir } from './paths.js';
 import type { HierarchicalMemory } from '../config/memory.js';
 
 function flattenResult(result: {
@@ -62,7 +62,6 @@ vi.mock('../utils/paths.js', async (importOriginal) => {
   };
 });
 
-import { homedir as pathsHomedir } from './paths.js';
 
 describe('memoryDiscovery', () => {
   const DEFAULT_FOLDER_TRUST = true;
@@ -179,6 +178,42 @@ describe('memoryDiscovery', () => {
       expect(fileCount).toEqual(1);
       expect(memoryContent).toContain(path.relative(cwd, filepath).toString());
       expect(filePaths).toEqual([filepath]);
+    });
+  });
+
+  describe('deduplicateRealPaths', () => {
+    it('should deduplicate GEMINI.md and gemini.md variants if they resolve to the same real file', async () => {
+      // Create one file on disk
+      const filePath = await createTestFile(
+        path.join(cwd, DEFAULT_CONTEXT_FILENAME),
+        'Real file memory',
+      );
+
+      const lowercasePath = path.join(cwd, 'symlink.md');
+
+      // The default getAllGeminiMdFilenames() returns ['GEMINI.md', 'gemini.md'] automatically.
+      // So we just need to create the second variant physically as a symlink to the first.
+      await fsPromises.symlink(filePath, lowercasePath);
+
+      // When loadServerHierarchicalMemory runs, it will discover both files because 'gemini.md' is a symlink
+      // to 'GEMINI.md'. Our deduplication logic uses `fs.realpath`,
+      // which will resolve the symlink to the original file, identifying them as duplicates.
+      const result = flattenResult(
+        await loadServerHierarchicalMemory(
+          cwd,
+          [],
+          false,
+          new FileDiscoveryService(projectRoot),
+          new SimpleExtensionLoader([]),
+          DEFAULT_FOLDER_TRUST,
+        ),
+      );
+
+      expect(result.fileCount).toEqual(1);
+      expect(result.filePaths).toEqual([filePath]);
+
+      // clean up the symlink
+      await fsPromises.unlink(lowercasePath);
     });
   });
 

@@ -39,6 +39,36 @@ export interface GeminiFileContent {
   content: string | null;
 }
 
+/**
+ * Deduplicates file paths by checking their real, physical paths on disk.
+ * This ensures that on case-insensitive filesystems (like macOS/Windows),
+ * variants like \`GEMINI.md\` and \`gemini.md\` that point to the same physical
+ * inode are not loaded twice.
+ */
+async function deduplicateRealPaths(paths: string[]): Promise<string[]> {
+  const deduplicated: string[] = [];
+  const seenRealPaths = new Set<string>();
+
+  for (const p of paths) {
+    try {
+      const realP = normalizePath(await fs.realpath(p));
+      if (!seenRealPaths.has(realP)) {
+        seenRealPaths.add(realP);
+        deduplicated.push(p);
+      }
+    } catch {
+      // Fallback if realpath fails (e.g. file deleted during scan or permission issues)
+      const nPath = normalizePath(p);
+      if (!seenRealPaths.has(nPath)) {
+        seenRealPaths.add(nPath);
+        deduplicated.push(p);
+      }
+    }
+  }
+
+  return deduplicated;
+}
+
 async function findProjectRoot(startDir: string): Promise<string | null> {
   let currentDir = normalizePath(startDir);
   while (true) {
@@ -356,8 +386,8 @@ export async function getGlobalMemoryPaths(
     }
   });
 
-  return (await Promise.all(accessChecks)).filter(
-    (p): p is string => p !== null,
+  return deduplicateRealPaths(
+    (await Promise.all(accessChecks)).filter((p): p is string => p !== null),
   );
 }
 
@@ -393,7 +423,7 @@ export async function getEnvironmentMemoryPaths(
   const pathArrays = await Promise.all(traversalPromises);
   pathArrays.flat().forEach((p) => allPaths.add(p));
 
-  return Array.from(allPaths).sort();
+  return deduplicateRealPaths(Array.from(allPaths).sort());
 }
 
 export function categorizeAndConcatenate(
@@ -526,12 +556,13 @@ export async function loadServerHierarchicalMemory(
     Promise.resolve(getExtensionMemoryPaths(extensionLoader)),
   ]);
 
+  // Apply deduplication to drop case-insensitive or symlink duplicates
+  const globalDeduped = await deduplicateRealPaths(discoveryResult.global);
+  const projectDeduped = await deduplicateRealPaths(discoveryResult.project);
+  const extensionDeduped = await deduplicateRealPaths(extensionPaths);
+
   const allFilePaths = Array.from(
-    new Set([
-      ...discoveryResult.global,
-      ...discoveryResult.project,
-      ...extensionPaths,
-    ]),
+    new Set([...globalDeduped, ...projectDeduped, ...extensionDeduped]),
   );
 
   if (allFilePaths.length === 0) {
@@ -555,9 +586,9 @@ export async function loadServerHierarchicalMemory(
   // 3. CATEGORIZE: Back into Global, Project, Extension
   const hierarchicalMemory = categorizeAndConcatenate(
     {
-      global: discoveryResult.global,
-      extension: extensionPaths,
-      project: discoveryResult.project,
+      global: globalDeduped,
+      extension: extensionDeduped,
+      project: projectDeduped,
     },
     contentsMap,
     currentWorkingDirectory,
@@ -656,15 +687,17 @@ export async function loadJitSubdirectoryMemory(
   // Filter out already loaded paths
   const newPaths = potentialPaths.filter((p) => !alreadyLoadedPaths.has(p));
 
-  if (newPaths.length === 0) {
+  const dedupedPaths = await deduplicateRealPaths(newPaths);
+
+  if (dedupedPaths.length === 0) {
     return { files: [] };
   }
 
   if (debugMode) {
-    logger.debug(`Found new JIT memory files: ${JSON.stringify(newPaths)}`);
+    logger.debug(`Found new JIT memory files: ${JSON.stringify(dedupedPaths)}`);
   }
 
-  const contents = await readGeminiMdFiles(newPaths, debugMode, 'tree');
+  const contents = await readGeminiMdFiles(dedupedPaths, debugMode, 'tree');
 
   return {
     files: contents
