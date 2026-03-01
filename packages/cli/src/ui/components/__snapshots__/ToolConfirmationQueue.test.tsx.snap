@@ -6,7 +6,7 @@ exports[`ToolConfirmationQueue > calculates availableContentHeight based on avai
 │                                                                              │
 │ ?  replace edit file                                                         │
 │                                                                              │
-│ ... first 49 lines hidden ...                                                │
+│ ... 49 hidden (Ctrl+O) ...                                                   │
 │ 50 line                                                                      │
 │ Apply this change?                                                           │
 │                                                                              │
@@ -20,10 +20,11 @@ exports[`ToolConfirmationQueue > calculates availableContentHeight based on avai
 `;
 
 exports[`ToolConfirmationQueue > does not render expansion hint when constrainHeight is false 1`] = `
-" Action Required
-
- ?  replace edit file
-
+"╭──────────────────────────────────────────────────────────────────────────────╮
+│ Action Required                                                              │
+│                                                                              │
+│ ?  replace edit file                                                         │
+│                                                                              │
 │ ╭──────────────────────────────────────────────────────────────────────────╮ │
 │ │                                                                          │ │
 │ │ No changes detected.                                                     │ │
@@ -41,8 +42,9 @@ exports[`ToolConfirmationQueue > does not render expansion hint when constrainHe
 `;
 
 exports[`ToolConfirmationQueue > provides more height for ask_user by subtracting less overhead 1`] = `
-" Answer Questions
-
+"╭──────────────────────────────────────────────────────────────────────────────╮
+│ Answer Questions                                                             │
+│                                                                              │
 │ Line 1                                                                       │
 │ Line 2                                                                       │
 │ Line 3                                                                       │
@@ -60,8 +62,9 @@ exports[`ToolConfirmationQueue > provides more height for ask_user by subtractin
 `;
 
 exports[`ToolConfirmationQueue > renders AskUser tool confirmation with Success color 1`] = `
-" Answer Questions
-
+"╭──────────────────────────────────────────────────────────────────────────────╮
+│ Answer Questions                                                             │
+│                                                                              │
 │ Review your answers:                                                         │
 │                                                                              │
 │                                                                              │
@@ -71,8 +74,9 @@ exports[`ToolConfirmationQueue > renders AskUser tool confirmation with Success 
 `;
 
 exports[`ToolConfirmationQueue > renders ExitPlanMode tool confirmation with Success color 1`] = `
-" Ready to start implementation?
-
+"╭──────────────────────────────────────────────────────────────────────────────╮
+│ Ready to start implementation?                                               │
+│                                                                              │
 │ Plan content goes here                                                       │
 │                                                                              │
 │ ● 1.  Yes, automatically accept edits                                        │
@@ -81,17 +85,18 @@ exports[`ToolConfirmationQueue > renders ExitPlanMode tool confirmation with Suc
 │       Approves plan but requires confirmation for each tool                  │
 │   3.  Type your feedback...                                                  │
 │                                                                              │
-│ Enter to select · ↑/↓ to navigate · Esc to cancel                            │
+│ Enter to select · ↑/↓ to navigate · Ctrl+X to edit plan · Esc to cancel      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 "
 `;
 
 exports[`ToolConfirmationQueue > renders expansion hint when content is long and constrained 1`] = `
-" Action Required
-
- ?  replace edit file
-
-│ ... first 49 lines hidden ...                                                │
+"╭──────────────────────────────────────────────────────────────────────────────╮
+│ Action Required                                                              │
+│                                                                              │
+│ ?  replace edit file                                                         │
+│                                                                              │
+│ ... 49 hidden (Ctrl+O) ...                                                   │
 │ 50 line                                                                      │
 │ Apply this change?                                                           │
 │                                                                              │
@@ -106,10 +111,11 @@ exports[`ToolConfirmationQueue > renders expansion hint when content is long and
 `;
 
 exports[`ToolConfirmationQueue > renders the confirming tool with progress indicator 1`] = `
-" Action Required                                                       1 of 3
-
- ?  ls list files
-
+"╭──────────────────────────────────────────────────────────────────────────────╮
+│ Action Required                                                       1 of 3 │
+│                                                                              │
+│ ?  ls list files                                                             │
+│                                                                              │
 │ ls                                                                           │
 │ Allow execution of: 'ls'?                                                    │
 │                                                                              │
