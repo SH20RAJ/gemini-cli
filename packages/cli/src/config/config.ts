@@ -449,9 +449,6 @@ export async function loadCliConfig(
 ): Promise<Config> {
   const { cwd = process.cwd(), projectHooks } = options;
   const debugMode = isDebugMode(argv);
-
-  const loadedSettings = loadSettings(cwd);
-
   if (argv.sandbox) {
     process.env['GEMINI_SANDBOX'] = 'true';
   }
@@ -870,7 +867,7 @@ export async function loadCliConfig(
     hooks: settings.hooks || {},
     disabledHooks: settings.hooksConfig?.disabled || [],
     projectHooks: projectHooks || {},
-    onModelChange: (model: string) => saveModelChange(loadedSettings, model),
+    onModelChange: (model: string) => saveModelChange(loadSettings(cwd), model),
     onReload: async () => {
       const refreshedSettings = loadSettings(cwd);
       return {
