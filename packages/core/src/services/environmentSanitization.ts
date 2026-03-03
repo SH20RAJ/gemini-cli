@@ -87,6 +87,9 @@ export const ALWAYS_ALLOWED_ENVIRONMENT_VARIABLES: ReadonlySet<string> =
     'REPOSITORY',
     'TITLE',
     'TRIGGERING_ACTOR',
+    // Terminal behavior
+    'TERM',
+    'COLORTERM',
   ]);
 
 export const NEVER_ALLOWED_ENVIRONMENT_VARIABLES: ReadonlySet<string> = new Set(

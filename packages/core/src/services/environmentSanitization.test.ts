@@ -318,4 +318,13 @@ describe('sanitizeEnvironment', () => {
     const sanitized = sanitizeEnvironment(env, options);
     expect(sanitized).toEqual(env);
   });
+
+  it('should allow TERM and COLORTERM', () => {
+    const env = {
+      TERM: 'xterm-256color',
+      COLORTERM: 'truecolor',
+    };
+    const sanitized = sanitizeEnvironment(env, EMPTY_OPTIONS);
+    expect(sanitized).toEqual(env);
+  });
 });

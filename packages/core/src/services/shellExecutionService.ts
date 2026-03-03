@@ -306,6 +306,8 @@ export class ShellExecutionService {
       const guardedCommand = ensurePromptvarsDisabled(commandToExecute, shell);
       const spawnArgs = [...argsPrefix, guardedCommand];
 
+      const sanitizedEnv = sanitizeEnvironment(process.env, sanitizationConfig);
+
       const child = cpSpawn(executable, spawnArgs, {
         cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -313,10 +315,11 @@ export class ShellExecutionService {
         shell: false,
         detached: !isWindows,
         env: {
-          ...sanitizeEnvironment(process.env, sanitizationConfig),
+          ...sanitizedEnv,
           [GEMINI_CLI_IDENTIFICATION_ENV_VAR]:
             GEMINI_CLI_IDENTIFICATION_ENV_VAR_VALUE,
-          TERM: 'xterm-256color',
+          TERM: sanitizedEnv['TERM'] || 'xterm-256color',
+          COLORTERM: sanitizedEnv['COLORTERM'] || 'truecolor',
           PAGER: 'cat',
           GIT_PAGER: 'cat',
         },
@@ -568,19 +571,22 @@ export class ShellExecutionService {
       const guardedCommand = ensurePromptvarsDisabled(commandToExecute, shell);
       const args = [...argsPrefix, guardedCommand];
 
+      const sanitizedEnv = sanitizeEnvironment(
+        process.env,
+        shellExecutionConfig.sanitizationConfig,
+      );
+
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const ptyProcess = ptyInfo.module.spawn(executable, args, {
         cwd,
-        name: 'xterm-256color',
+        name: sanitizedEnv['TERM'] || 'xterm-256color',
         cols,
         rows,
         env: {
-          ...sanitizeEnvironment(
-            process.env,
-            shellExecutionConfig.sanitizationConfig,
-          ),
+          ...sanitizedEnv,
           GEMINI_CLI: '1',
-          TERM: 'xterm-256color',
+          TERM: sanitizedEnv['TERM'] || 'xterm-256color',
+          COLORTERM: sanitizedEnv['COLORTERM'] || 'truecolor',
           PAGER: shellExecutionConfig.pager ?? 'cat',
           GIT_PAGER: shellExecutionConfig.pager ?? 'cat',
         },
