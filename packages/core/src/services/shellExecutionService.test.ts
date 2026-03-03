@@ -429,6 +429,85 @@ describe('ShellExecutionService', () => {
       await handle.result;
       expect(handle.pid).toBe(12345);
     });
+
+    it('should pass TERM and COLORTERM from process.env if available (PTY)', async () => {
+      vi.stubEnv('TERM', 'custom-term');
+      vi.stubEnv('COLORTERM', 'custom-colorterm');
+
+      await simulateExecution('env', (pty) => {
+        pty.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
+      });
+
+      expect(mockPtySpawn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            TERM: 'custom-term',
+            COLORTERM: 'custom-colorterm',
+          }),
+        }),
+      );
+
+      vi.unstubAllEnvs();
+    });
+
+    it('should use fallbacks for TERM and COLORTERM if not in process.env (PTY)', async () => {
+      vi.stubEnv('TERM', '');
+      vi.stubEnv('COLORTERM', '');
+
+      await simulateExecution('env', (pty) => {
+        pty.onExit.mock.calls[0][0]({ exitCode: 0, signal: null });
+      });
+
+      expect(mockPtySpawn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            TERM: 'xterm-256color',
+            COLORTERM: 'truecolor',
+          }),
+        }),
+      );
+
+      vi.unstubAllEnvs();
+    });
+
+    it('should pass TERM and COLORTERM from process.env if available (ChildProcess)', async () => {
+      mockGetPty.mockResolvedValue(null);
+      vi.stubEnv('TERM', 'cp-term');
+      vi.stubEnv('COLORTERM', 'cp-colorterm');
+
+      const abortController = new AbortController();
+      const mockChild = new EventEmitter() as any;
+      mockChild.pid = 999;
+      mockChild.stdout = new EventEmitter();
+      mockChild.stderr = new EventEmitter();
+      mockCpSpawn.mockReturnValue(mockChild);
+
+      await ShellExecutionService.execute(
+        'env',
+        '/test/dir',
+        onOutputEventMock,
+        abortController.signal,
+        false,
+        shellExecutionConfig,
+      );
+
+      expect(mockCpSpawn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(Array),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            TERM: 'cp-term',
+            COLORTERM: 'cp-colorterm',
+          }),
+        }),
+      );
+
+      vi.unstubAllEnvs();
+    });
   });
 
   describe('pty interaction', () => {
