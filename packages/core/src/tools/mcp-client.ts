@@ -990,10 +990,29 @@ function createTransportRequestInit(
     enableEnvironmentVariableRedaction: true,
   });
 
+  const urlStr = mcpServerConfig.httpUrl || mcpServerConfig.url;
+  let isLocalhost = true;
+  if (urlStr) {
+    try {
+      const parsedUrl = new URL(urlStr);
+      isLocalhost = ['localhost', '127.0.0.1', '::1'].includes(parsedUrl.hostname);
+    } catch {
+      // Ignore parse errors, default to treating as localhost safely? 
+      // Actually, default to NOT localhost to be safe.
+      isLocalhost = false;
+    }
+  }
+
+  const sensitiveHeaders = ['authorization', 'cookie', 'set-cookie', 'x-api-key'];
+
   const expandedHeaders: Record<string, string> = {};
   if (mcpServerConfig.headers) {
     for (const [key, value] of Object.entries(mcpServerConfig.headers)) {
-      expandedHeaders[key] = expandEnvVars(value, sanitizedEnv);
+      if (!isLocalhost && sensitiveHeaders.includes(key.toLowerCase())) {
+        expandedHeaders[key] = '[REDACTED]';
+      } else {
+        expandedHeaders[key] = expandEnvVars(value, sanitizedEnv);
+      }
     }
   }
 
